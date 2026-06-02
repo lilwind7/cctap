@@ -1,0 +1,5 @@
+{"type":"system","message":{"content":"session started"}}
+{"type":"user","message":{"content":"帮我看看 auth 模块"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"好的"}]}}
+{"type":"user","message":{"content":"再加一个测试"}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"完成"}]}}
