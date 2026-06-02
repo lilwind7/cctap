@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake osascript: prints $FAKE_OSASCRIPT_OUT (default "no") and exits 0.
+# If $FAKE_OSASCRIPT_FAIL=1, exits 1.
+if [ "${FAKE_OSASCRIPT_FAIL:-0}" = "1" ]; then
+    exit 1
+fi
+printf '%s\n' "${FAKE_OSASCRIPT_OUT:-no}"
+exit 0
