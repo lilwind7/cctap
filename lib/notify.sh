@@ -1,0 +1,28 @@
+# Send a macOS notification. Always exits 0.
+# Args: <title> <subtitle> <message> <group> <focus_cwd>
+send_notification() {
+    local title="$1"
+    local subtitle="$2"
+    local message="$3"
+    local group="$4"
+    local focus_cwd="$5"
+
+    if ! command -v terminal-notifier >/dev/null 2>&1; then
+        echo "cctap: terminal-notifier not found; skipping notification" >&2
+        return 0
+    fi
+
+    local project_root
+    project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+    terminal-notifier \
+        -title "$title" \
+        -subtitle "$subtitle" \
+        -message "$message" \
+        -group "$group" \
+        -sender "com.warp.Warp" \
+        -execute "$project_root/lib/focus_warp.sh '$focus_cwd'" \
+        >/dev/null 2>&1 || true
+
+    return 0
+}

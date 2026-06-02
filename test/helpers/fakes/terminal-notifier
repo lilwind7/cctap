@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Fake terminal-notifier: record every arg to $FAKE_NOTIFIER_LOG (one arg per line).
+# Used by integration tests.
+: "${FAKE_NOTIFIER_LOG:=/tmp/fake-notifier.log}"
+printf '%s\n' "$@" >> "$FAKE_NOTIFIER_LOG"
+exit 0
