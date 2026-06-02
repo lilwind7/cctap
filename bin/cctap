@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # cctap — Claude Code → macOS notification bridge.
-# Contract: exits 0 on every path, never writes to stdout, returns within ~1s.
+# Contract (hook handlers only): exits 0 on every path, never writes to stdout,
+# returns within ~1s. User-invoked subcommands (test-notify, doctor) may write
+# to stdout and may return non-zero — `doctor` propagates its exit code so
+# scripts can `if cctap doctor; then ...`.
 
 set +e
 trap 'exit 0' ERR
@@ -117,12 +120,66 @@ handle_session_end() {
         "$cwd"
 }
 
+handle_test_notify() {
+    send_notification \
+        "cctap · 测试" \
+        "如果你看到这条横幅，cctap 工作正常" \
+        "点击会把 Warp 切到前台（如果装了的话）" \
+        "cctap:test" \
+        "$HOME"
+    return 0
+}
+
+handle_doctor() {
+    local ok=1
+
+    printf "cctap doctor\n"
+    printf -- "------------\n"
+
+    if command -v terminal-notifier >/dev/null 2>&1; then
+        printf "[ok]  terminal-notifier: %s\n" "$(command -v terminal-notifier)"
+    else
+        printf "[!!]  terminal-notifier: missing (brew install terminal-notifier)\n"
+        ok=0
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        printf "[ok]  jq: %s\n" "$(command -v jq)"
+    else
+        printf "[!!]  jq: missing (brew install jq)\n"
+        ok=0
+    fi
+
+    if command -v osascript >/dev/null 2>&1; then
+        printf "[ok]  osascript: %s\n" "$(command -v osascript)"
+    else
+        printf "[!!]  osascript: missing (this should never happen on macOS)\n"
+        ok=0
+    fi
+
+    if osascript -e 'tell application "System Events" to exists process "Warp"' 2>/dev/null | grep -q true; then
+        printf "[ok]  Warp is running\n"
+    else
+        printf "[--]  Warp not currently running (this is fine, just informational)\n"
+    fi
+
+    local log="$HOME/.cache/cctap/cctap.log"
+    if [ -f "$log" ]; then
+        printf "\nRecent log entries:\n"
+        tail -n 10 "$log"
+    fi
+
+    [ "$ok" = "1" ]
+}
+
 main() {
     local cmd="${1:-}"
     case "$cmd" in
         stop) handle_stop ;;
         notification) handle_notification ;;
         session-end) handle_session_end ;;
+        test-notify) handle_test_notify ;;
+        doctor) handle_doctor; exit $? ;;
         *) log "unknown subcommand: $cmd" ;;
     esac
     return 0
