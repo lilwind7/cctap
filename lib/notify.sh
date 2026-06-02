@@ -15,13 +15,20 @@ send_notification() {
     local project_root
     project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+    # Escape any single quotes in focus_cwd so the -execute string parses cleanly.
+    # The canonical '\'' pattern closes the single-quoted segment, emits an
+    # escaped single quote, then re-opens it. Note: the assignment is intentionally
+    # unquoted because inside "${var//PAT/REP}" the backslashes in REP are
+    # preserved literally instead of being consumed by the shell.
+    local quoted_cwd=${focus_cwd//\'/\'\\\'\'}
+
     terminal-notifier \
         -title "$title" \
         -subtitle "$subtitle" \
         -message "$message" \
         -group "$group" \
         -sender "com.warp.Warp" \
-        -execute "$project_root/lib/focus_warp.sh '$focus_cwd'" \
+        -execute "$project_root/lib/focus_warp.sh '$quoted_cwd'" \
         >/dev/null 2>&1 || true
 
     return 0

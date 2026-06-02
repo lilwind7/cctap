@@ -52,3 +52,23 @@ source_lib() {
     PATH="/usr/bin:/bin" run bash -c "source $PROJECT_ROOT/lib/notify.sh; send_notification T S M g /p"
     [ "$status" -eq 0 ]
 }
+
+@test "send_notification escapes single quotes in focus_cwd for -execute" {
+    source_lib
+    send_notification "T" "S" "M" "g" "/Users/x/Bob's stuff"
+    # The -execute arg should contain the apostrophe in a shell-safe form.
+    # We verify by extracting the line after -execute and shell-evaluating it
+    # to confirm it parses cleanly and the resulting argv has exactly one arg
+    # equal to "/Users/x/Bob's stuff".
+    execute_line=$(awk '/^-execute$/{getline; print; exit}' "$FAKE_NOTIFIER_LOG")
+    [ -n "$execute_line" ]
+    # Use bash to evaluate the execute string into argv, capture argv[1] (the cwd arg)
+    extracted=$(bash -c "set -- $execute_line; printf '%s\n' \"\$#\" \"\$2\"")
+    # First line is the argc; second line is argv[1] (focus_warp.sh) and... wait.
+    # set -- expands the string; argv[0] will be the script path, argv[1] the cwd.
+    # We want $# == 2 and $2 == "/Users/x/Bob's stuff".
+    argc=$(printf '%s\n' "$extracted" | sed -n '1p')
+    arg2=$(printf '%s\n' "$extracted" | sed -n '2p')
+    [ "$argc" = "2" ]
+    [ "$arg2" = "/Users/x/Bob's stuff" ]
+}
