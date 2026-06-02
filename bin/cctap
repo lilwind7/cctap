@@ -60,10 +60,35 @@ handle_stop() {
         "$cwd"
 }
 
+handle_notification() {
+    read_payload
+    local cwd msg
+    cwd="$(payload_field cwd)"
+    msg="$(payload_field message)"
+
+    [ -z "$cwd" ] && { log "notification: missing cwd"; return 0; }
+
+    if is_warp_focused_on "$cwd"; then
+        log "notification: Warp focused on $cwd, skipping"
+        return 0
+    fi
+
+    local proj_name
+    proj_name="$(basename "$cwd")"
+
+    send_notification \
+        "${proj_name} · 待确认" \
+        "$msg" \
+        "" \
+        "cctap:${cwd}" \
+        "$cwd"
+}
+
 main() {
     local cmd="${1:-}"
     case "$cmd" in
         stop) handle_stop ;;
+        notification) handle_notification ;;
         *) log "unknown subcommand: $cmd" ;;
     esac
     return 0
