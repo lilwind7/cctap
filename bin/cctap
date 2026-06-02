@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# cctap — Claude Code → macOS notification bridge.
+# Contract: exits 0 on every path, never writes to stdout, returns within ~1s.
+
+set +e
+trap 'exit 0' ERR
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LIB_DIR="$PROJECT_ROOT/lib"
+
+# shellcheck source=lib/transcript.sh
+source "$LIB_DIR/transcript.sh"
+# shellcheck source=lib/notify.sh
+source "$LIB_DIR/notify.sh"
+# shellcheck source=lib/focus_check.sh
+source "$LIB_DIR/focus_check.sh"
+
+log() {
+    local cache_dir="${HOME}/.cache/cctap"
+    mkdir -p "$cache_dir" 2>/dev/null
+    printf '[%s] %s\n' "$(date +%FT%T)" "$*" >> "$cache_dir/cctap.log" 2>/dev/null || true
+}
+
+parse_payload() {
+    # Echoes <cwd>|<transcript_path>|<message> joined by '|'.
+    # Missing/invalid fields become empty strings.
+    local input
+    input="$(cat)"
+    [ -z "$input" ] && { printf '|||'; return 0; }
+    printf '%s' "$input" | jq -r '
+        (.cwd // "") + "|" +
+        (.transcript_path // "") + "|" +
+        (.message // "")
+    ' 2>/dev/null || printf '|||'
+}
+
+handle_stop() {
+    local cwd transcript_path _msg
+    IFS='|' read -r cwd transcript_path _msg < <(parse_payload)
+    [ -z "$cwd" ] && { log "stop: missing cwd"; return 0; }
+
+    if is_warp_focused_on "$cwd"; then
+        log "stop: Warp already focused on $cwd, skipping"
+        return 0
+    fi
+
+    local proj_name summary
+    proj_name="$(basename "$cwd")"
+    summary="$(extract_last_user_message "$transcript_path")"
+
+    send_notification \
+        "${proj_name} · 已完成" \
+        "$summary" \
+        "Claude 已结束本轮" \
+        "cctap:${cwd}" \
+        "$cwd"
+}
+
+main() {
+    local cmd="${1:-}"
+    case "$cmd" in
+        stop) handle_stop ;;
+        *) log "unknown subcommand: $cmd" ;;
+    esac
+    return 0
+}
+
+main "$@"
+exit 0
