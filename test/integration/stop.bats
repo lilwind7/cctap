@@ -52,3 +52,30 @@ teardown() { teardown_tmpdir; }
     run bash -c "$PROJECT_ROOT/bin/cctap stop < $PAYLOAD_FILE"
     [ -z "$output" ]
 }
+
+@test "cctap stop handles cwd containing pipe character without truncation" {
+    weird_cwd="$TMPDIR_TEST/has|pipe-in-name"
+    mkdir -p "$weird_cwd"
+    cat > "$TMPDIR_TEST/payload.json" <<EOF
+{"session_id":"abc","transcript_path":"$PROJECT_ROOT/test/fixtures/transcript-basic.jsonl","cwd":"$weird_cwd"}
+EOF
+    run bash -c "$PROJECT_ROOT/bin/cctap stop < $TMPDIR_TEST/payload.json"
+    [ "$status" -eq 0 ]
+    [ -f "$FAKE_NOTIFIER_LOG" ]
+    # The notifier should have received the full cwd as the group name.
+    grep -q "cctap:$weird_cwd" "$FAKE_NOTIFIER_LOG"
+}
+
+@test "cctap stop handles multi-line message field gracefully" {
+    # CC stop hook doesn't normally include a message, but if it did with
+    # embedded newlines, the script must still exit 0 and not corrupt other fields.
+    cat > "$TMPDIR_TEST/payload.json" <<'EOF'
+{"session_id":"abc","transcript_path":"","cwd":"FIXTURE_CWD","message":"line one\nline two"}
+EOF
+    sed -i.bak "s|FIXTURE_CWD|$FAKE_CWD|" "$TMPDIR_TEST/payload.json"
+    rm "$TMPDIR_TEST/payload.json.bak"
+    run bash -c "$PROJECT_ROOT/bin/cctap stop < $TMPDIR_TEST/payload.json"
+    [ "$status" -eq 0 ]
+    # Notification should have been sent (cwd is valid).
+    [ -f "$FAKE_NOTIFIER_LOG" ]
+}

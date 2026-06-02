@@ -21,22 +21,26 @@ log() {
     printf '[%s] %s\n' "$(date +%FT%T)" "$*" >> "$cache_dir/cctap.log" 2>/dev/null || true
 }
 
-parse_payload() {
-    # Echoes <cwd>|<transcript_path>|<message> joined by '|'.
-    # Missing/invalid fields become empty strings.
-    local input
-    input="$(cat)"
-    [ -z "$input" ] && { printf '|||'; return 0; }
-    printf '%s' "$input" | jq -r '
-        (.cwd // "") + "|" +
-        (.transcript_path // "") + "|" +
-        (.message // "")
-    ' 2>/dev/null || printf '|||'
+# Read the payload once into a global var, then expose accessors.
+CCTAP_PAYLOAD=""
+
+read_payload() {
+    CCTAP_PAYLOAD="$(cat)"
+}
+
+payload_field() {
+    # Echo .${field} from CCTAP_PAYLOAD, empty string on missing/error.
+    local field="$1"
+    [ -z "$CCTAP_PAYLOAD" ] && { printf ''; return 0; }
+    printf '%s' "$CCTAP_PAYLOAD" | jq -r --arg f "$field" '.[$f] // "" | tostring' 2>/dev/null || printf ''
 }
 
 handle_stop() {
-    local cwd transcript_path _msg
-    IFS='|' read -r cwd transcript_path _msg < <(parse_payload)
+    read_payload
+    local cwd transcript_path
+    cwd="$(payload_field cwd)"
+    transcript_path="$(payload_field transcript_path)"
+
     [ -z "$cwd" ] && { log "stop: missing cwd"; return 0; }
 
     if is_warp_focused_on "$cwd"; then
