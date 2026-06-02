@@ -84,11 +84,45 @@ handle_notification() {
         "$cwd"
 }
 
+handle_session_end() {
+    read_payload
+    local cwd transcript_path reason
+    cwd="$(payload_field cwd)"
+    transcript_path="$(payload_field transcript_path)"
+    reason="$(payload_field reason)"
+
+    [ -z "$cwd" ] && { log "session-end: missing cwd"; return 0; }
+
+    case "$reason" in
+        clear|logout)
+            log "session-end: normal ($reason), skipping"
+            return 0
+            ;;
+    esac
+
+    if is_warp_focused_on "$cwd"; then
+        log "session-end: Warp focused on $cwd, skipping"
+        return 0
+    fi
+
+    local proj_name summary
+    proj_name="$(basename "$cwd")"
+    summary="$(extract_last_user_message "$transcript_path")"
+
+    send_notification \
+        "${proj_name} · 异常退出" \
+        "$summary" \
+        "原因: ${reason:-unknown}" \
+        "cctap:${cwd}" \
+        "$cwd"
+}
+
 main() {
     local cmd="${1:-}"
     case "$cmd" in
         stop) handle_stop ;;
         notification) handle_notification ;;
+        session-end) handle_session_end ;;
         *) log "unknown subcommand: $cmd" ;;
     esac
     return 0
