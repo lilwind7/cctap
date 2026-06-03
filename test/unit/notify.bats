@@ -84,22 +84,21 @@ EOF
     [ "$elapsed" -lt 2 ]
 }
 
-@test "send_notification passes -appIcon when icon exists in repo" {
+@test "send_notification passes -contentImage when icon exists in repo" {
     [ -f "$PROJECT_ROOT/share/icons/cctap.png" ] || skip "cctap.png not present"
     source_lib
     send_notification "T" "S" "M" "g" "/p"
-    grep -q -- "-appIcon" "$FAKE_NOTIFIER_LOG"
+    grep -q -- "-contentImage" "$FAKE_NOTIFIER_LOG"
     grep -q "share/icons/cctap.png" "$FAKE_NOTIFIER_LOG"
 }
 
-@test "send_notification omits -appIcon when icon missing (graceful)" {
-    # Stage a fake repo layout where lib/notify.sh exists but share/icons/cctap.png doesn't.
+@test "send_notification omits -contentImage when icon missing (graceful)" {
     fake_repo="$TMPDIR_TEST/fake-repo"
     mkdir -p "$fake_repo/lib"
     cp "$PROJECT_ROOT/lib/notify.sh" "$fake_repo/lib/notify.sh"
     source "$fake_repo/lib/notify.sh"
     send_notification "T" "S" "M" "g" "/p"
-    ! grep -q -- "-appIcon" "$FAKE_NOTIFIER_LOG"
+    ! grep -q -- "-contentImage" "$FAKE_NOTIFIER_LOG"
 }
 
 @test "send_notification escapes single quotes in focus_cwd for -execute" {
