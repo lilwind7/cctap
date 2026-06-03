@@ -47,3 +47,16 @@ teardown() { teardown_tmpdir; }
     grep -q "/Users/x/.local/bin/cctap stop" "$TMPDIR_TEST/settings.json"
     ! grep -q "CCTAP_BIN" "$TMPDIR_TEST/settings.json"
 }
+
+@test "merge_hooks handles cctap_bin containing special chars (& and |)" {
+    cp "$PROJECT_ROOT/test/fixtures/settings-empty.json" "$TMPDIR_TEST/settings.json"
+    weird_bin="/tmp/foo&bar|baz/cctap"
+    run "$PROJECT_ROOT/share/install/merge_hooks.sh" \
+        "$TMPDIR_TEST/settings.json" "$weird_bin"
+    [ "$status" -eq 0 ]
+    # The exact bin path (with & and |) must appear literally in the settings.
+    grep -qF "${weird_bin} stop" "$TMPDIR_TEST/settings.json"
+    grep -qF "${weird_bin} notification" "$TMPDIR_TEST/settings.json"
+    grep -qF "${weird_bin} session-end" "$TMPDIR_TEST/settings.json"
+    ! grep -q "CCTAP_BIN" "$TMPDIR_TEST/settings.json"
+}

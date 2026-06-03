@@ -19,7 +19,10 @@ if [ ! -f "$settings" ]; then
 fi
 
 # Render snippet with the real cctap path.
-rendered=$(sed "s|CCTAP_BIN|$cctap_bin|g" "$snippet")
+# Use bash parameter expansion (not sed) to avoid metacharacter pitfalls.
+# sed would mis-handle & (back-reference) or | (its delimiter) in cctap_bin.
+rendered=$(cat "$snippet")
+rendered=${rendered//CCTAP_BIN/$cctap_bin}
 
 # Merge per event:
 # For each event key in the rendered snippet, append each new group to the
