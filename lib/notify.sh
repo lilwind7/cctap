@@ -31,7 +31,7 @@ send_notification() {
         -subtitle "$subtitle" \
         -message "$message" \
         -group "$group" \
-        -sender "com.warp.Warp" \
+        -sender "dev.warp.Warp-Stable" \
         "${icon_args[@]}" \
         -execute "$project_root/lib/focus_warp.sh '$quoted_cwd'" \
         >/dev/null 2>&1 || true

@@ -41,11 +41,11 @@ source_lib() {
     grep -q "/foo" "$FAKE_NOTIFIER_LOG"
 }
 
-@test "send_notification passes -sender com.warp.Warp" {
+@test "send_notification passes -sender with Warp's bundle id" {
     source_lib
     send_notification "T" "S" "M" "g" "/p"
     grep -q -- "-sender" "$FAKE_NOTIFIER_LOG"
-    grep -q "com.warp.Warp" "$FAKE_NOTIFIER_LOG"
+    grep -q "dev.warp.Warp-Stable" "$FAKE_NOTIFIER_LOG"
 }
 
 @test "send_notification exits 0 even if terminal-notifier missing" {
