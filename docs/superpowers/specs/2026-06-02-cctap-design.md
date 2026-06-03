@@ -119,7 +119,11 @@ bin/cctap stop
 tell application "Warp"
     if not frontmost then return "no"
     set wd to working directory of selected tab of front window
-    if wd starts with "$cwd" then return "yes" else return "no"
+    if wd = "$cwd" or wd starts with "$cwd" & "/" then
+        return "yes"
+    else
+        return "no"
+    end if
 end tell
 ```
 
@@ -132,10 +136,11 @@ tell application "Warp"
     activate
     repeat with w in windows
         repeat with t in tabs of w
-            if (working directory of t) starts with "$cwd" then
+            set wd to working directory of t
+            if wd = "$cwd" or wd starts with "$cwd" & "/" then
                 set index of w to 1
                 set selected of t to true
-                return
+                return "matched"
             end if
         end repeat
     end repeat
@@ -161,7 +166,7 @@ cctap 跑在 CC 的主循环里。契约：
 | Hook payload JSON 损坏 | exit 0，stderr 记错误。 |
 | 任何其他异常 | `trap` 兜底，exit 0。 |
 
-日志写到 `~/.cache/cctap/cctap.log`，带简单的按大小轮转（每次运行时若 > 1 MB 则截断保留最后 1000 行）。`cctap doctor` 会 tail 最近几行帮排查。
+日志写到 `~/.cache/cctap/cctap.log`，纯 append（v1 不轮转——单次会话几行而已，长期使用再考虑加 rotation）。`cctap doctor` 会 tail 最近 10 条帮排查。
 
 ## 7. 安装 / 卸载
 
