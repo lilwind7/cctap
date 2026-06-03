@@ -22,18 +22,11 @@ send_notification() {
     # preserved literally instead of being consumed by the shell.
     local quoted_cwd=${focus_cwd//\'/\'\\\'\'}
 
-    # Use -contentImage (right-side thumbnail) instead of -appIcon (left-side
-    # app icon). On modern macOS, -appIcon is mostly ignored unless paired
-    # with -sender pointing at a real app bundle. -contentImage works reliably
-    # without registering cctap as an .app bundle.
-    local icon_path="$project_root/share/icons/cctap.png"
-    local icon_args=()
-    [ -f "$icon_path" ] && icon_args=(-contentImage "$icon_path")
-
     # We deliberately do NOT pass -sender. Routing through another app's
     # bundle id (e.g. dev.warp.Warp-Stable) requires that app to have macOS
     # notification permission, and silently drops the banner otherwise.
-    # With -appIcon, the user still sees our cctap icon on the banner.
+    # The notification appears from terminal-notifier (left icon is its app
+    # icon — we can't override that without registering cctap as an .app).
     #
     # -timeout 10: terminal-notifier auto-exits 10s after posting, so an
     # un-clicked notification doesn't leave the process hanging.
@@ -48,7 +41,6 @@ send_notification() {
         -message "$message"
         -group "$group"
         -timeout 10
-        "${icon_args[@]}"
         -execute "$project_root/lib/focus_warp.sh '$quoted_cwd'"
     )
 
