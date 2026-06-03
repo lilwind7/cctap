@@ -51,3 +51,14 @@ teardown() { teardown_tmpdir; }
     ! grep -q "cctap" "$HOME/.claude/settings.json"
     grep -q "dcc hook post-tool-use" "$HOME/.claude/settings.json"
 }
+
+@test "install fails loudly when settings.json is malformed" {
+    # Make the existing settings.json un-parseable.
+    printf '{not valid json' > "$HOME/.claude/settings.json"
+    run "$PROJECT_ROOT/bin/cctap" install
+    [ "$status" -ne 0 ]
+    # The backup should still have been created from the broken settings.
+    ls "$HOME/.claude/backups/" | grep -q "settings."
+    # And the user should see an error message.
+    [[ "$output" == *"merge failed"* ]] || [[ "$output" == *"failed"* ]]
+}

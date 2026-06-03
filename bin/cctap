@@ -211,7 +211,11 @@ handle_install() {
         return 1
     fi
 
-    "$merge_script" "$SETTINGS_FILE" "$cctap_bin"
+    if ! "$merge_script" "$SETTINGS_FILE" "$cctap_bin"; then
+        printf "cctap: merge failed; original settings.json preserved in %s\n" \
+            "$BACKUP_DIR" >&2
+        return 1
+    fi
 
     printf "cctap installed.\n\n"
     printf "Permissions reminder:\n"
