@@ -234,9 +234,10 @@ handle_uninstall() {
         if .hooks == null then . else
             .hooks |= with_entries(
                 .value |= map(
-                    .hooks |= map(select(.command | test("cctap") | not))
+                    .hooks |= map(select(.command | test("(^|/)cctap( |$)") | not))
                 ) | .value |= map(select(.hooks | length > 0))
-            )
+            ) |
+            .hooks |= with_entries(select(.value | length > 0))
         end
     ' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
     printf "cctap hooks removed. Run 'brew uninstall cctap' to remove the binary.\n"

@@ -62,3 +62,30 @@ teardown() { teardown_tmpdir; }
     # And the user should see an error message.
     [[ "$output" == *"merge failed"* ]] || [[ "$output" == *"failed"* ]]
 }
+
+@test "uninstall does NOT remove non-cctap commands that contain the literal cctap" {
+    cat > "$HOME/.claude/settings.json" <<'EOF'
+{
+  "model": "opus",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/Users/x/.local/bin/cctap stop" },
+          { "type": "command", "command": "/Users/x/bin/my-cctap-wrapper" },
+          { "type": "command", "command": "/usr/bin/foo --note cctap-thing" }
+        ]
+      }
+    ]
+  }
+}
+EOF
+    run "$PROJECT_ROOT/bin/cctap" uninstall
+    [ "$status" -eq 0 ]
+    # cctap stop should be GONE.
+    ! grep -q "cctap stop" "$HOME/.claude/settings.json"
+    # Non-cctap commands containing the substring should REMAIN.
+    grep -q "my-cctap-wrapper" "$HOME/.claude/settings.json"
+    grep -q "cctap-thing" "$HOME/.claude/settings.json"
+}
