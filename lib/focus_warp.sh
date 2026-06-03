@@ -1,34 +1,19 @@
 #!/usr/bin/env bash
-# Bring the Warp tab matching <cwd> to the front. Falls back to just activating Warp.
+# Activate Warp when the user clicks a cctap notification.
 # Can be sourced (provides focus_warp_tab function) or executed directly.
 # Always exits 0.
+#
+# Why not switch to the matching tab? Warp's AppleScript dictionary doesn't
+# expose tabs/windows. Earlier attempts at `repeat with t in tabs of w` failed
+# with a compile-time syntax error, which silently aborted the entire script
+# including the activate call — so clicking the banner did literally nothing.
+# Keeping this dead-simple: just bring Warp forward. See spec §5.4.
 
 # Render the AppleScript used by focus_warp_tab. Exposed for unit tests.
 render_focus_warp_script() {
-    local cwd="$1"
-    cat <<APPLESCRIPT
-try
-    tell application "Warp" to activate
-    tell application "Warp"
-        repeat with w in windows
-            repeat with t in tabs of w
-                try
-                    set wd to working directory of t
-                    if wd = "$cwd" or wd starts with "$cwd" & "/" then
-                        set index of w to 1
-                        set selected of t to true
-                        return "matched"
-                    end if
-                end try
-            end repeat
-        end repeat
-    end tell
-on error
-    try
-        tell application "Warp" to activate
-    end try
-end try
-return "done"
+    local _cwd="$1"  # currently unused — kept for future tab-aware impl
+    cat <<'APPLESCRIPT'
+tell application "Warp" to activate
 APPLESCRIPT
 }
 
