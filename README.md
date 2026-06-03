@@ -11,7 +11,7 @@ Claude Code 到 macOS 通知的桥接小工具。
 ## 安装
 
 ```bash
-brew install jcong830/tap/cctap
+brew install lilwind7/tap/cctap
 cctap install
 ```
 

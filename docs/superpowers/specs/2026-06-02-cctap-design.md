@@ -2,7 +2,7 @@
 
 **状态：** 草稿
 **日期：** 2026-06-02
-**作者：** jcong830
+**作者：** lilwind7
 
 ## 1. 问题
 
@@ -20,7 +20,7 @@
 4. 通知里能一眼看出是**哪个会话**——用工作目录 + 最近一条用户消息摘要标识。
 5. 如果你当前焦点已经在那个 Warp tab 上，**不再通知**。
 6. 点击横幅能把对应的 Warp tab 切到前台。
-7. 通过 Homebrew tap 分发，安装命令一行：`brew install jcong830/tap/cctap`。
+7. 通过 Homebrew tap 分发，安装命令一行：`brew install lilwind7/tap/cctap`。
 
 ## 3. 非目标
 
@@ -40,7 +40,7 @@
 | 点击行为 | 切回匹配的 Warp tab |
 | 声音 | 静默（仅横幅） |
 | 焦点已对上时跳过 | 是——当前 Warp tab 的工作目录与事件 cwd 匹配时不发通知 |
-| 分发方式 | Homebrew tap (`jcong830/homebrew-tap`) |
+| 分发方式 | Homebrew tap (`lilwind7/homebrew-tap`) |
 
 ## 5. 架构
 
@@ -170,7 +170,7 @@ cctap 跑在 CC 的主循环里。契约：
 
 ## 7. 安装 / 卸载
 
-`brew install jcong830/tap/cctap` 把 `cctap` 装到 PATH 上，同时拉依赖（`terminal-notifier`、`jq`）。
+`brew install lilwind7/tap/cctap` 把 `cctap` 装到 PATH 上，同时拉依赖（`terminal-notifier`、`jq`）。
 
 `cctap install`：
 

@@ -1,10 +1,10 @@
 class Cctap < Formula
   desc "macOS notification bridge for Claude Code sessions"
-  homepage "https://github.com/jcong830/cctap"
-  url "https://github.com/jcong830/cctap/archive/refs/tags/v0.1.0.tar.gz"
+  homepage "https://github.com/lilwind7/cctap"
+  url "https://github.com/lilwind7/cctap/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "REPLACE_ON_RELEASE"
   license "MIT"
-  head "https://github.com/jcong830/cctap.git", branch: "main"
+  head "https://github.com/lilwind7/cctap.git", branch: "main"
 
   depends_on "jq"
   depends_on "terminal-notifier"
