@@ -172,6 +172,72 @@ handle_doctor() {
     [ "$ok" = "1" ]
 }
 
+SETTINGS_FILE="$HOME/.claude/settings.json"
+BACKUP_DIR="$HOME/.claude/backups"
+
+backup_settings() {
+    [ -f "$SETTINGS_FILE" ] || return 0
+    mkdir -p "$BACKUP_DIR"
+    local ts
+    ts="$(date +%Y%m%d-%H%M%S)"
+    cp "$SETTINGS_FILE" "$BACKUP_DIR/settings.$ts.json"
+}
+
+# Canonicalize a path: resolve symlinks and absolutize.
+canonical_path() {
+    local p="$1"
+    # On macOS, perl is available out of the box and has abs_path.
+    if command -v perl >/dev/null 2>&1; then
+        perl -MCwd -e 'print Cwd::abs_path($ARGV[0])' "$p" 2>/dev/null && return 0
+    fi
+    # Fallback: cd-and-pwd technique (does not resolve symlinks but absolutizes).
+    local dir base
+    dir="$(cd "$(dirname "$p")" 2>/dev/null && pwd)" || { printf '%s' "$p"; return 0; }
+    base="$(basename "$p")"
+    printf '%s/%s' "$dir" "$base"
+}
+
+handle_install() {
+    mkdir -p "$(dirname "$SETTINGS_FILE")"
+    backup_settings
+
+    local cctap_bin
+    cctap_bin="$(canonical_path "${BASH_SOURCE[0]}")"
+
+    local merge_script
+    merge_script="$PROJECT_ROOT/share/install/merge_hooks.sh"
+    if [ ! -x "$merge_script" ]; then
+        printf "cctap: merge script not found at %s\n" "$merge_script" >&2
+        return 1
+    fi
+
+    "$merge_script" "$SETTINGS_FILE" "$cctap_bin"
+
+    printf "cctap installed.\n\n"
+    printf "Permissions reminder:\n"
+    printf "  System Settings → Privacy & Security → Automation\n"
+    printf "    Terminal/Warp must be allowed to control: Warp, System Events.\n\n"
+    printf "Running self-check...\n\n"
+    handle_doctor || true
+}
+
+handle_uninstall() {
+    [ -f "$SETTINGS_FILE" ] || { printf "Nothing to uninstall (no settings.json).\n"; return 0; }
+    backup_settings
+    local tmp
+    tmp="$(mktemp)"
+    jq '
+        if .hooks == null then . else
+            .hooks |= with_entries(
+                .value |= map(
+                    .hooks |= map(select(.command | test("cctap") | not))
+                ) | .value |= map(select(.hooks | length > 0))
+            )
+        end
+    ' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+    printf "cctap hooks removed. Run 'brew uninstall cctap' to remove the binary.\n"
+}
+
 main() {
     local cmd="${1:-}"
     case "$cmd" in
@@ -180,6 +246,8 @@ main() {
         session-end) handle_session_end ;;
         test-notify) handle_test_notify ;;
         doctor) handle_doctor; exit $? ;;
+        install) handle_install; exit $? ;;
+        uninstall) handle_uninstall; exit $? ;;
         *) log "unknown subcommand: $cmd" ;;
     esac
     return 0
