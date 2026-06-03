@@ -1,0 +1,21 @@
+{
+  "model": "opus",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/usr/local/bin/dcc hook post-tool-use", "timeout": 5000 }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/usr/local/bin/dcc hook session-end", "timeout": 3000 }
+        ]
+      }
+    ]
+  }
+}

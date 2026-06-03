@@ -1,0 +1,38 @@
+{
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "CCTAP_BIN stop",
+          "timeout": 5000
+        }
+      ]
+    }
+  ],
+  "Notification": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "CCTAP_BIN notification",
+          "timeout": 5000
+        }
+      ]
+    }
+  ],
+  "SessionEnd": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "CCTAP_BIN session-end",
+          "timeout": 5000
+        }
+      ]
+    }
+  ]
+}
