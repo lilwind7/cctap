@@ -11,6 +11,7 @@ class Cctap < Formula
 
   def install
     libexec.install "lib"
+    (libexec/"share").install "share/icons"
     pkgshare.install "share/install"
 
     # Patch bin/cctap so PROJECT_ROOT/INSTALL_SHARE point at brew-managed paths.

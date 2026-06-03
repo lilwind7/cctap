@@ -22,12 +22,17 @@ send_notification() {
     # preserved literally instead of being consumed by the shell.
     local quoted_cwd=${focus_cwd//\'/\'\\\'\'}
 
+    local icon_path="$project_root/share/icons/cctap.png"
+    local icon_args=()
+    [ -f "$icon_path" ] && icon_args=(-appIcon "$icon_path")
+
     terminal-notifier \
         -title "$title" \
         -subtitle "$subtitle" \
         -message "$message" \
         -group "$group" \
         -sender "com.warp.Warp" \
+        "${icon_args[@]}" \
         -execute "$project_root/lib/focus_warp.sh '$quoted_cwd'" \
         >/dev/null 2>&1 || true
 
