@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runtime deps
+        run: |
+          brew install jq terminal-notifier
+
+      - name: Install bats and helpers (kaos/shell tap)
+        run: |
+          brew install bats-core
+          brew tap kaos/shell
+          brew install kaos/shell/bats-assert kaos/shell/bats-support
+
+      - name: Ensure scripts are executable
+        run: |
+          chmod +x bin/cctap
+          chmod +x lib/focus_warp.sh
+          chmod +x share/install/merge_hooks.sh
+          chmod +x test/helpers/fakes/terminal-notifier
+          chmod +x test/helpers/fakes/osascript
+
+      - name: Run bats
+        run: bats test/unit test/integration
