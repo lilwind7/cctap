@@ -8,7 +8,7 @@ setup() {
     FAKE_NOTIFIER_LOG="$TMPDIR_TEST/notifier.log"
     export FAKE_NOTIFIER_LOG
     export PATH="$PROJECT_ROOT/test/helpers/fakes:$PATH"
-    export FAKE_OSASCRIPT_OUT="no"
+    export CCTAP_NO_DETACH=1
 
     fake_cwd="$TMPDIR_TEST/crashed-proj"
     mkdir -p "$fake_cwd"
@@ -49,11 +49,10 @@ mk_payload() {
     [ ! -f "$FAKE_NOTIFIER_LOG" ]
 }
 
-@test "session-end with reason=prompt_input_exit notifies" {
+@test "session-end with reason=prompt_input_exit does NOT notify (user-initiated exit)" {
     payload=$(mk_payload payload-session-end-other.json)
     jq '.reason = "prompt_input_exit"' "$payload" > "$payload.tmp" && mv "$payload.tmp" "$payload"
     run bash -c "$PROJECT_ROOT/bin/cctap session-end < $payload"
     [ "$status" -eq 0 ]
-    grep -q "异常退出" "$FAKE_NOTIFIER_LOG"
-    grep -q "原因: prompt_input_exit" "$FAKE_NOTIFIER_LOG"
+    [ ! -f "$FAKE_NOTIFIER_LOG" ]
 }

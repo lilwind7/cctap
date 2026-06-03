@@ -15,8 +15,6 @@ LIB_DIR="$PROJECT_ROOT/lib"
 source "$LIB_DIR/transcript.sh"
 # shellcheck source=lib/notify.sh
 source "$LIB_DIR/notify.sh"
-# shellcheck source=lib/focus_check.sh
-source "$LIB_DIR/focus_check.sh"
 
 log() {
     local cache_dir="${HOME}/.cache/cctap"
@@ -46,11 +44,6 @@ handle_stop() {
 
     [ -z "$cwd" ] && { log "stop: missing cwd"; return 0; }
 
-    if is_warp_focused_on "$cwd"; then
-        log "stop: Warp already focused on $cwd, skipping"
-        return 0
-    fi
-
     local proj_name summary
     proj_name="$(basename "$cwd")"
     summary="$(extract_last_user_message "$transcript_path")"
@@ -70,11 +63,6 @@ handle_notification() {
     msg="$(payload_field message)"
 
     [ -z "$cwd" ] && { log "notification: missing cwd"; return 0; }
-
-    if is_warp_focused_on "$cwd"; then
-        log "notification: Warp focused on $cwd, skipping"
-        return 0
-    fi
 
     local proj_name
     proj_name="$(basename "$cwd")"
@@ -97,16 +85,11 @@ handle_session_end() {
     [ -z "$cwd" ] && { log "session-end: missing cwd"; return 0; }
 
     case "$reason" in
-        clear|logout)
+        clear|logout|prompt_input_exit)
             log "session-end: normal ($reason), skipping"
             return 0
             ;;
     esac
-
-    if is_warp_focused_on "$cwd"; then
-        log "session-end: Warp focused on $cwd, skipping"
-        return 0
-    fi
 
     local proj_name summary
     proj_name="$(basename "$cwd")"

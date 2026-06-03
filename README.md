@@ -43,9 +43,13 @@ cctap install
 
 - **静默通知**：所有横幅都不带声音，避免并发会话连环响。
 - **替换不堆叠**：同一会话的连续通知用相同 group id 投递，新的覆盖旧的，不在通知中心积压。
-- **聚焦时跳过**：若当前 Warp tab 已经对准会话的 cwd，cctap 判定你已经在看了，直接不弹。
 - **永远 exit 0**：所有 hook 路径承诺 ≤1s 返回、`exit 0`、不写 stdout，绝不阻塞 Claude Code。
-- **切 tab 是 best-effort**：点击横幅尝试通过 AppleScript 激活匹配的 Warp tab，但 Warp 的脚本字典随版本变化，失败也不影响通知本身。
+- **切 tab 是 best-effort**：点击横幅尝试激活 Warp。Warp 的 AppleScript 字典对 tab 级操作几乎不可用，所以实际效果通常只是把 Warp 拉到前台，不一定切到具体 tab。
+
+**v1 已知限制**
+
+- **不支持"聚焦时跳过"**：理想行为是当前看着的 tab 已经是这个会话时不发通知。Warp 的 AppleScript 字典不暴露 tab 级 working directory（连 `name of every window` 都报错），无法可靠判断。所以即便你盯着会话窗口，事件触发时还是会弹一条。`-group` 保证同会话连续通知会替换不堆叠，伤害有限。等 Warp 补全脚本字典或我们改成基于 macOS Accessibility 的方案再做。
+- **`exit` 退出会话视为正常**：`prompt_input_exit` 不发"异常退出"通知，跟 `clear`/`logout` 一样静默。只有 reason=`other`（崩溃 / 父进程死等）才会弹。
 
 ## 排错
 
@@ -86,8 +90,7 @@ brew uninstall cctap # 移除二进制
 bin/cctap              主入口，子命令分发
 lib/transcript.sh      解析 Claude Code transcript（jsonl）
 lib/notify.sh          terminal-notifier 封装
-lib/focus_check.sh     判断 Warp 当前是否对准某个 cwd
-lib/focus_warp.sh      点击横幅后激活匹配的 Warp tab
+lib/focus_warp.sh      点击横幅后尝试激活 Warp（best-effort）
 share/install/         hooks 片段 + 幂等 jq merge 脚本
 test/unit/             bats 单元测试
 test/integration/      bats 集成测试

@@ -60,8 +60,7 @@ cctap/
 ├── bin/
 │   └── cctap                  # 入口，~150 LoC bash
 ├── lib/
-│   ├── focus_check.sh         # osascript：当前 Warp tab 的 cwd 是否 == 事件 cwd？
-│   ├── focus_warp.sh          # osascript：把工作目录匹配 <cwd> 的 Warp tab 切到前台
+│   ├── focus_warp.sh          # 点击横幅后尝试激活 Warp（best-effort，见 §5.4）
 │   ├── transcript.sh          # jq 流水线：从 transcript JSONL 抽出最后一条 user message
 │   └── notify.sh              # terminal-notifier 的封装
 ├── share/
@@ -87,7 +86,6 @@ CC hook 触发，stdin 给到 JSON：{session_id, transcript_path, cwd, ...}
 bin/cctap stop
     │
     ├─ 解析 payload (jq) → cwd, transcript_path, session_id
-    ├─ focus_check.sh "$cwd"   → 若 Warp 当前 tab 匹配，静默 exit 0
     ├─ transcript.sh "$transcript_path" → 取最后一条 user message，截断到 ~60 字
     ├─ 组装：
     │     title    = "$(basename $cwd) · 已完成"
@@ -109,45 +107,21 @@ bin/cctap stop
 | `notification` | `· 待确认` | hook payload 自带的 `message` 字段（如 "Claude needs your permission to use Bash"） | （空——subtitle 已经说明了原因） |
 | `session-end`（异常） | `· 异常退出` | transcript 里最后一条 user message | `原因: $reason` |
 
-`session-end` 要做过滤：`reason ∈ {clear, logout}` 时跳过（这是用户主动结束）；`prompt_input_exit`、`other` 以及其他未知值都视为值得通知。
+`session-end` 要做过滤：`reason ∈ {clear, logout, prompt_input_exit}` 时跳过——前两个是 slash command 主动结束，`prompt_input_exit` 是用户在 prompt 上 Ctrl+C / Ctrl+D / `exit` 退出，都属于正常退出。只有 `other`（崩溃 / 父进程死等）以及任何未列出的未知值才视为值得通知。
 
-### 5.4 Warp 切焦点的实现
+> **v1 实现说明**：原方案把 `prompt_input_exit` 当作"异常退出"通知，实测发现用户手动 `exit` 也会触发，体验上是误报。已调整为正常退出。
 
-`focus_check.sh "$cwd"`：
+### 5.4 Warp 焦点处理
 
-```applescript
-tell application "Warp"
-    if not frontmost then return "no"
-    set wd to working directory of selected tab of front window
-    if wd = "$cwd" or wd starts with "$cwd" & "/" then
-        return "yes"
-    else
-        return "no"
-    end if
-end tell
-```
-
-退出码 0 = "命中，跳过通知"。
-
-`focus_warp.sh "$cwd"`：
-
-```applescript
-tell application "Warp"
-    activate
-    repeat with w in windows
-        repeat with t in tabs of w
-            set wd to working directory of t
-            if wd = "$cwd" or wd starts with "$cwd" & "/" then
-                set index of w to 1
-                set selected of t to true
-                return "matched"
-            end if
-        end repeat
-    end repeat
-end tell
-```
-
-找不到匹配 tab 时的兜底：仅 `activate Warp`。README 里要明确说"tab 级切焦点是 best-effort"——Warp 的 AppleScript 字典随版本会变，不保证每个版本都能做到 tab 级精确切换。
+> **v1 实际状态**：实测发现 Warp 的 AppleScript 字典几乎为空——只暴露 `version`，连 `name of every window` 都报 `execution error`，更不用说 `working directory of tab` 这种东西。原设计的 `focus_check.sh` 和 `focus_warp.sh` 在真 Warp 上根本不工作。
+>
+> **bats 测试覆盖盲区**：所有单元测试都用 `$PATH` 注入的假 `osascript`，输出由 `FAKE_OSASCRIPT_OUT` 控制，从没在真实 AppleScript 上验过语法。所以这个问题逃过了所有测试。
+>
+> v1 决定：
+> - **砍掉 `focus_check.sh`**——所有事件都通知，不再尝试判断当前焦点。`-group cctap:$cwd` 已经保证同会话连续通知会替换不堆叠，体验损失可接受。
+> - **保留 `focus_warp.sh` 但只剩 fallback**——AppleScript repeat 在 Warp 上失败，落到 `on error` 分支只 `activate Warp`。结果就是点击横幅可以把 Warp 拉到前台，但不保证切到具体 tab。
+>
+> v2 候选方案：(a) 用 macOS Accessibility (System Events) 读窗口标题做 best-effort 匹配——需要用户额外授权；(b) 把 cctap 做成独立 .app bundle，用原生 UNUserNotificationCenter，可以走 session-id 维度的精确去重；(c) 等 Warp 补全脚本字典。
 
 ## 6. 可靠性
 
@@ -162,7 +136,7 @@ cctap 跑在 CC 的主循环里。契约：
 | `terminal-notifier` 未安装 | stderr 警告，exit 0。`doctor` 标为致命错误。Brew formula 已声明为 runtime 依赖，正常装下来不会出现。 |
 | `jq` 未安装 | 同上。 |
 | `transcript_path` 不存在 / 解析失败 | subtitle 降级为空，通知照发。 |
-| Warp AppleScript 失败（权限缺失 / 版本不兼容） | `focus_check` 视为"未命中"，正常发通知；`focus_warp` 降级为仅 `activate Warp`。 |
+| Warp AppleScript 失败（实际就是常态——见 §5.4） | `focus_warp` 落到 fallback 分支只 `activate Warp`；其他事件路径不再依赖 AppleScript。 |
 | Hook payload JSON 损坏 | exit 0，stderr 记错误。 |
 | 任何其他异常 | `trap` 兜底，exit 0。 |
 

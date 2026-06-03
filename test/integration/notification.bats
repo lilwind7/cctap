@@ -8,7 +8,7 @@ setup() {
     FAKE_NOTIFIER_LOG="$TMPDIR_TEST/notifier.log"
     export FAKE_NOTIFIER_LOG
     export PATH="$PROJECT_ROOT/test/helpers/fakes:$PATH"
-    export FAKE_OSASCRIPT_OUT="no"
+    export CCTAP_NO_DETACH=1
 
     fake_cwd="$TMPDIR_TEST/needs-input"
     mkdir -p "$fake_cwd"
@@ -26,12 +26,6 @@ teardown() { teardown_tmpdir; }
     [ -f "$FAKE_NOTIFIER_LOG" ]
     grep -q "needs-input · 待确认" "$FAKE_NOTIFIER_LOG"
     grep -q "Claude needs your permission to use Bash" "$FAKE_NOTIFIER_LOG"
-}
-
-@test "cctap notification skips when Warp focused" {
-    FAKE_OSASCRIPT_OUT="yes" run bash -c "$PROJECT_ROOT/bin/cctap notification < $PAYLOAD_FILE"
-    [ "$status" -eq 0 ]
-    [ ! -f "$FAKE_NOTIFIER_LOG" ]
 }
 
 @test "cctap notification handles multi-line message without truncation" {

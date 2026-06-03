@@ -8,6 +8,7 @@ setup() {
     FAKE_NOTIFIER_LOG="$TMPDIR_TEST/notifier.log"
     export FAKE_NOTIFIER_LOG
     export PATH="$PROJECT_ROOT/test/helpers/fakes:$PATH"
+    export CCTAP_NO_DETACH=1
 }
 teardown() { teardown_tmpdir; }
 
