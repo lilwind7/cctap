@@ -8,6 +8,8 @@ setup() {
     FAKE_NOTIFIER_LOG="$TMPDIR_TEST/notifier.log"
     export FAKE_NOTIFIER_LOG
     export PATH="$PROJECT_ROOT/test/helpers/fakes:$PATH"
+    # Tests need deterministic synchronous behavior; production detaches via subshell.
+    export CCTAP_NO_DETACH=1
 }
 teardown() { teardown_tmpdir; }
 
@@ -41,16 +43,45 @@ source_lib() {
     grep -q "/foo" "$FAKE_NOTIFIER_LOG"
 }
 
-@test "send_notification passes -sender with Warp's bundle id" {
+@test "send_notification does NOT pass -sender (avoids permission attribution issues)" {
     source_lib
     send_notification "T" "S" "M" "g" "/p"
-    grep -q -- "-sender" "$FAKE_NOTIFIER_LOG"
-    grep -q "dev.warp.Warp-Stable" "$FAKE_NOTIFIER_LOG"
+    # Routing through another app's bundle id (e.g. Warp's) requires that app to
+    # have macOS notification permission, and silently drops the banner otherwise.
+    # The cctap icon comes from -appIcon, not from -sender attribution.
+    ! grep -q -- "-sender" "$FAKE_NOTIFIER_LOG"
 }
 
 @test "send_notification exits 0 even if terminal-notifier missing" {
     PATH="/usr/bin:/bin" run bash -c "source $PROJECT_ROOT/lib/notify.sh; send_notification T S M g /p"
     [ "$status" -eq 0 ]
+}
+
+@test "send_notification passes -timeout to auto-dismiss notification" {
+    source_lib
+    send_notification "T" "S" "M" "g" "/p"
+    grep -q -- "-timeout" "$FAKE_NOTIFIER_LOG"
+    awk '/^-timeout$/{getline; print; exit}' "$FAKE_NOTIFIER_LOG" | grep -qE '^[0-9]+$'
+}
+
+@test "send_notification returns immediately when not in NO_DETACH mode" {
+    # Make the fake terminal-notifier sleep 5s — if we waited synchronously,
+    # this test would take 5s; with detach, send_notification returns instantly.
+    cat > "$TMPDIR_TEST/slow-tn" <<'EOF'
+#!/usr/bin/env bash
+sleep 5
+exit 0
+EOF
+    chmod +x "$TMPDIR_TEST/slow-tn"
+    # Build a fakes dir containing only the slow fake.
+    mkdir -p "$TMPDIR_TEST/fakes"
+    cp "$TMPDIR_TEST/slow-tn" "$TMPDIR_TEST/fakes/terminal-notifier"
+    unset CCTAP_NO_DETACH
+    PATH="$TMPDIR_TEST/fakes:/usr/bin:/bin" source "$PROJECT_ROOT/lib/notify.sh"
+    start=$(date +%s)
+    PATH="$TMPDIR_TEST/fakes:/usr/bin:/bin" send_notification "T" "S" "M" "g" "/p"
+    elapsed=$(( $(date +%s) - start ))
+    [ "$elapsed" -lt 2 ]
 }
 
 @test "send_notification passes -appIcon when icon exists in repo" {

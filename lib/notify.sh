@@ -26,15 +26,33 @@ send_notification() {
     local icon_args=()
     [ -f "$icon_path" ] && icon_args=(-appIcon "$icon_path")
 
-    terminal-notifier \
-        -title "$title" \
-        -subtitle "$subtitle" \
-        -message "$message" \
-        -group "$group" \
-        -sender "dev.warp.Warp-Stable" \
-        "${icon_args[@]}" \
-        -execute "$project_root/lib/focus_warp.sh '$quoted_cwd'" \
-        >/dev/null 2>&1 || true
+    # We deliberately do NOT pass -sender. Routing through another app's
+    # bundle id (e.g. dev.warp.Warp-Stable) requires that app to have macOS
+    # notification permission, and silently drops the banner otherwise.
+    # With -appIcon, the user still sees our cctap icon on the banner.
+    #
+    # -timeout 10: terminal-notifier auto-exits 10s after posting, so an
+    # un-clicked notification doesn't leave the process hanging.
+    #
+    # Detach: terminal-notifier with -execute blocks until clicked or timed
+    # out — that's up to 10s, far over our ≤1s hook contract. The ( ... & )
+    # subshell backgrounds the process and returns immediately. Tests set
+    # CCTAP_NO_DETACH=1 to run synchronously for deterministic assertions.
+    local tn_args=(
+        -title "$title"
+        -subtitle "$subtitle"
+        -message "$message"
+        -group "$group"
+        -timeout 10
+        "${icon_args[@]}"
+        -execute "$project_root/lib/focus_warp.sh '$quoted_cwd'"
+    )
+
+    if [ "${CCTAP_NO_DETACH:-0}" = "1" ]; then
+        terminal-notifier "${tn_args[@]}" >/dev/null 2>&1 || true
+    else
+        ( terminal-notifier "${tn_args[@]}" >/dev/null 2>&1 & )
+    fi
 
     return 0
 }
