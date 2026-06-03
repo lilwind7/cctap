@@ -166,18 +166,21 @@ backup_settings() {
     cp "$SETTINGS_FILE" "$BACKUP_DIR/settings.$ts.json"
 }
 
-# Canonicalize a path: resolve symlinks and absolutize.
+# Absolutize a path WITHOUT resolving symlinks. We want to record the
+# stable symlink (e.g. /opt/homebrew/bin/cctap), not the Cellar-version
+# specific target, so settings.json keeps working across brew upgrades.
 canonical_path() {
     local p="$1"
-    # On macOS, perl is available out of the box and has abs_path.
-    if command -v perl >/dev/null 2>&1; then
-        perl -MCwd -e 'print Cwd::abs_path($ARGV[0])' "$p" 2>/dev/null && return 0
-    fi
-    # Fallback: cd-and-pwd technique (does not resolve symlinks but absolutizes).
-    local dir base
-    dir="$(cd "$(dirname "$p")" 2>/dev/null && pwd)" || { printf '%s' "$p"; return 0; }
-    base="$(basename "$p")"
-    printf '%s/%s' "$dir" "$base"
+    case "$p" in
+        /*) printf '%s' "$p" ;;
+        *)
+            local dir base
+            dir="$(cd "$(dirname "$p")" 2>/dev/null && pwd -L)" \
+                || { printf '%s' "$p"; return 0; }
+            base="$(basename "$p")"
+            printf '%s/%s' "$dir" "$base"
+            ;;
+    esac
 }
 
 handle_install() {
