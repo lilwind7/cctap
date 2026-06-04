@@ -36,6 +36,39 @@ payload_field() {
     printf '%s' "$CCTAP_PAYLOAD" | jq -r --arg f "$field" '.[$f] // "" | tostring' 2>/dev/null || printf ''
 }
 
+# Dedup support: handle_stop and handle_notification fire back-to-back when CC
+# finishes a turn and asks for the next prompt. From the user's perspective
+# that's one event, not two. We mark a timestamp on stop, and notification
+# checks it to suppress its own banner if stop just fired for the same cwd.
+recent_event_marker() {
+    local event="$1" cwd="$2"
+    local key
+    # md5 -q is on macOS by default. Fallback to shasum for portability.
+    key=$(printf '%s' "$cwd" | md5 -q 2>/dev/null) \
+        || key=$(printf '%s' "$cwd" | shasum 2>/dev/null | awk '{print $1}')
+    [ -z "$key" ] && key="default"
+    printf '%s/recent-%s-%s' "${HOME}/.cache/cctap" "$event" "$key"
+}
+
+mark_recent_event() {
+    local event="$1" cwd="$2"
+    mkdir -p "${HOME}/.cache/cctap" 2>/dev/null
+    date +%s > "$(recent_event_marker "$event" "$cwd")" 2>/dev/null
+}
+
+# Returns 0 if <event> was marked for <cwd> within the last <within> seconds.
+was_recent_event() {
+    local event="$1" cwd="$2" within="${3:-5}"
+    local file
+    file=$(recent_event_marker "$event" "$cwd")
+    [ -f "$file" ] || return 1
+    local last now
+    last=$(cat "$file" 2>/dev/null)
+    [ -z "$last" ] && return 1
+    now=$(date +%s)
+    [ $((now - last)) -lt "$within" ]
+}
+
 handle_stop() {
     read_payload
     local cwd transcript_path
@@ -54,6 +87,8 @@ handle_stop() {
         "Claude 已结束本轮" \
         "cctap:${cwd}" \
         "$cwd"
+
+    mark_recent_event stop "$cwd"
 }
 
 handle_notification() {
@@ -63,6 +98,11 @@ handle_notification() {
     msg="$(payload_field message)"
 
     [ -z "$cwd" ] && { log "notification: missing cwd"; return 0; }
+
+    if was_recent_event stop "$cwd" 5; then
+        log "notification: stop just fired for $cwd, suppressing duplicate banner"
+        return 0
+    fi
 
     local proj_name
     proj_name="$(basename "$cwd")"
